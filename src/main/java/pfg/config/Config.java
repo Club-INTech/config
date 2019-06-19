@@ -215,13 +215,7 @@ public class Config
 				}
 
 				// parsing finished, derive derivable parameters
-				for (ConfigInfo<?> info : allConfigInfo)
-				{
-					if(info instanceof DerivedConfigInfo)
-					{
-						configValues.put(info, ((DerivedConfigInfo<?>)info).derive(this));
-					}
-				}
+				updateDerivedInfo();
 			}
 			else
 			{
@@ -493,11 +487,11 @@ public class Config
 	 */
 	public void override(HashMap<ConfigInfo, Object> override)
 	{
-		for(ConfigInfo key : override.keySet())
+		for(Map.Entry<ConfigInfo, Object> entry : override.entrySet())
 		{
-			if(!allConfigInfo.contains(key))
-				throw new IllegalArgumentException("Unknown configuration key : "+key);
-			configValues.put(key, override.get(key));
+			ConfigInfo key = entry.getKey();
+			Object value = entry.getValue();
+			override(key, value);
 		}
 	}
 	
@@ -506,13 +500,24 @@ public class Config
 	 * @param key
 	 * @param newValue
 	 */
-	public void override(ConfigInfo key, Object newValue)
+	public <T> void override(ConfigInfo<T> key, T newValue)
 	{
 		if(key != null)
 		{
 			if(!allConfigInfo.contains(key))
 				throw new IllegalArgumentException("Unknown configuration key : "+key);
 			configValues.put(key, newValue);
+			updateDerivedInfo();
+		}
+	}
+
+	private void updateDerivedInfo() {
+		for (ConfigInfo<?> info : allConfigInfo)
+		{
+			if(info instanceof DerivedConfigInfo)
+			{
+				configValues.put(info, ((DerivedConfigInfo<?>)info).derive(this));
+			}
 		}
 	}
 
