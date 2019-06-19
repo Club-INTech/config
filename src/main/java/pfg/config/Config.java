@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.util.*;
 
 import org.ini4j.Ini;
@@ -16,7 +17,7 @@ import org.ini4j.Profile.Section;
 
 /**
  * The configuration values are located in two places.
- * The ConfigInfo enum provides default values. A configuration file can overload these values.
+ * The ConfigInfo list provides default values. A configuration file can overload these values.
  * The point of the configuration file is to change the configuration without recompiling.
  * 
  * @author Pierre-François Gimenez, Xavier "jglrxavpok" Niochaut
@@ -24,6 +25,9 @@ import org.ini4j.Profile.Section;
  */
 public class Config
 {
+	/**
+	 * Map of default parsers for different types
+	 */
 	private static final Map<Class<?>, ConfigInfoParser> DEFAULT_PARSERS = new HashMap<Class<?>, ConfigInfoParser>() {
 		{
 			put(String.class, str -> str);
@@ -58,8 +62,26 @@ public class Config
 	 * List containing all available parsers for this Config instance
 	 */
 	private final Map<Class<?>, ConfigInfoParser> parsers;
+
+	/**
+	 * Cached configurable values
+	 */
 	private HashMap<ConfigInfo, Object> configValues = new HashMap<ConfigInfo, Object>();
-	private List<ConfigInfo> allConfigInfo = new ArrayList<ConfigInfo>();
+
+	/**
+	 * Cached String -> ConfigInfo map to link a name to the given ConfigInfo (that holds this name)<br/>
+	 * Used to find which ConfigInfo is used when using reflection inside {@link #loadInto(Object)}
+	 */
+	private Map<String, ConfigInfo<?>> name2config = new HashMap<>();
+
+	/**
+	 * List of all loaded ConfigInfo
+	 */
+	private List<ConfigInfo<?>> allConfigInfo = new ArrayList<>();
+
+	/**
+	 * Should the library outputs debug information?
+	 */
 	private boolean verbose;
 
 	/**
@@ -99,12 +121,19 @@ public class Config
 		this(allConfigInfo, verbose, configfile, DEFAULT_PARSERS, profiles);
 	}
 
+	/**
+	 * Constructor of Config with a config file and a list of parsers
+	 * @param parsers list of parsers used by the library
+	 * @see Config#Config(ConfigInfo[], boolean, String, String...)
+	 */
 	public Config(ConfigInfo[] allConfigInfo, boolean verbose, String configfile, Map<Class<?>, ConfigInfoParser> parsers, String... profiles)
 	{
 		this.parsers = parsers;
 
-		for(ConfigInfo info : allConfigInfo)
+		for(ConfigInfo info : allConfigInfo) {
 			this.allConfigInfo.add(info);
+			this.name2config.put(info.toString().toLowerCase(), info);
+		}
 
 		this.verbose = verbose;
 		
@@ -141,7 +170,7 @@ public class Config
 			{
 				for(String profile : profiles)
 				{
-					Section s = (Section) inifile.get(profile);
+					Section s = inifile.get(profile);
 					if(s == null)
 					{
 						if(verbose)
@@ -151,40 +180,36 @@ public class Config
 
 					for(String key : s.keySet())
 					{
-						boolean ok = false;
-						for(ConfigInfo<?> info : allConfigInfo)
-						{
-							if(info instanceof DerivedConfigInfo) { // DerivedConfigInfo values are not stored inside the configuration file
-								continue;
+						ConfigInfo<?> info = name2config.get(key.toLowerCase());
+						if(info == null) {
+							if(verbose) {
+								System.err.println("Unknown key : "+key);
 							}
-							if (info.toString().toLowerCase().equals(key.toLowerCase()))
-							{
-								ConfigInfoParser<?> parser = findParser(info.getTypeClass());
-								if (parser == null) // if there is no parser, store the value as a String
-								{
-									configValues.put(info, s.get(key));
-								}
-								else // otherwise, parse the value
-								{
-									try {
-										configValues.put(info, parser.parse(s.get(key)));
-									} catch (IllegalArgumentException exception) {
-										if(verbose) {
-											System.err.print("Failed to load "+info+" due to: "+exception.getClass().getCanonicalName()+": "+exception.getMessage()+".");
-											if( ! configValues.containsKey(info)) {
-												System.err.println(" No already existing key, loading default value ("+info.getDefaultValue()+")");
-												configValues.put(info, info.getDefaultValue());
-											}
-										}
-										exception.printStackTrace();
+							continue;
+						}
+						if(info instanceof DerivedConfigInfo) { // DerivedConfigInfo values are not stored inside the configuration file
+							continue;
+						}
+						ConfigInfoParser<?> parser = findParser(info.getTypeClass());
+						if (parser == null) // if there is no parser, store the value as a String
+						{
+							configValues.put(info, s.get(key));
+						}
+						else // otherwise, parse the value
+						{
+							try {
+								configValues.put(info, parser.parse(s.get(key)));
+							} catch (IllegalArgumentException exception) {
+								if(verbose) {
+									System.err.print("Failed to load "+info+" due to: "+exception.getClass().getCanonicalName()+": "+exception.getMessage()+".");
+									if( ! configValues.containsKey(info)) {
+										System.err.println(" No already existing key, loading default value ("+info.getDefaultValue()+")");
+										configValues.put(info, info.getDefaultValue());
 									}
 								}
-								ok = true;
-								break;
+								exception.printStackTrace();
 							}
 						}
-						if(!ok && verbose)
-							System.err.println("Unknown key : "+key);
 					}
 
 				}
@@ -223,11 +248,31 @@ public class Config
 	}
 
 	/**
-	 * Loads config elements marked by {@link ConfigElement} into the given object
-	 * @param obj
+	 * Loads config elements marked by {@link Configurable} into the given object using reflection.
+	 * @param obj the object to load the config into
 	 */
-	public void loadInto(Object obj) {
-
+	public void loadInto(Object obj) throws ReflectiveOperationException {
+		Class<?> objectClass = obj.getClass();
+		for(Field f : objectClass.getFields()) {
+			if(f.isAnnotationPresent(Configurable.class)) { // check if field is configurable
+				Configurable annotation = f.getAnnotation(Configurable.class);
+				String name = annotation.value();
+				if(name.isEmpty()) { // if no name has been given for the config key related to this field, use the field's name
+					name = f.getName();
+				}
+				name = name.toLowerCase(); // all names are stored in lowercase
+				ConfigInfo<?> configElement = name2config.get(name);
+				if(configElement == null)
+					throw new IllegalArgumentException("Config key '"+name+"' unknown (when loading config for field "+objectClass.getCanonicalName()+"#"+f.getName());
+				Object value = get(configElement);
+				// set the field's value
+				if(!f.isAccessible()) {
+					f.setAccessible(true);
+				}
+				f.set(obj, value);
+				System.out.println("Set "+f+" to "+value);
+			}
+		}
 	}
 
 	/**

@@ -12,7 +12,7 @@ import java.util.List;
 
 /**
  * The ConfigInfo interface : each object is a configurable value.
- * This interface can be efficiently implemented by an enum
+ * Instances of this interface should be either named by hand or sought using {@link ConfigInfo#findAllIn(Class)} which looks inside the class for {@link Configurable} fields
  * @author Pierre-François Gimenez, Xavier "jglrxavpok" Niochaut
  */
 public interface ConfigInfo<Type>
@@ -38,6 +38,10 @@ public interface ConfigInfo<Type>
 	 */
 	Class<Type> getTypeClass();
 
+	/**
+	 * This method must change the name for this ConfigInfo. Used in {@link #findAllIn(Class)}
+	 * @param name
+	 */
 	void setName(String name);
 
 	/**
