@@ -7,7 +7,7 @@ repositories {
 }
 
 apply plugin: 'java'
-version = '2.1'
+version = '2.1.1'
 
 dependencies {
     compile group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
