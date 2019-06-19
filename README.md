@@ -8,37 +8,47 @@ The point of the configuration file is to change the configuration without recom
 
 The configuration file must consist of ```key = value``` lines. Commentaries are introduced with the ```#``` character. [Here is an config file example](https://raw.githubusercontent.com/PFGimenez/config/master/example/config_example.ini).
 
+## Gradle installation
+If you want to use this library in one of your gradle projects, add this to your `build.gradle`:
+```groovy
+allprojects {
+    repositories {
+        ...
+        maven { url 'https://jitpack.io' }
+    }
+}
+...
+dependencies {
+        implementation 'com.github.Club-INTech:config:v2.0'
+}
+```
+
 ## Maven installation
 
 If you want to use this library in one of your maven project, add this to your `pom.xml`:
 
     <repositories>
+        ...
         <repository>
-            <id>PFGimenez-Kraken</id>
-            <url>https://packagecloud.io/PFGimenez/Kraken/maven2</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
         </repository>
     </repositories>
 
 and
 
-    <dependency>
-        <groupId>pfg.config</groupId>
-        <artifactId>config</artifactId>
-        <version>1.4</version>
-    </dependency>
+	<dependency>
+	    <groupId>com.github.Club-INTech</groupId>
+	    <artifactId>config</artifactId>
+	    <version>v2.0</version>
+	</dependency>
 
 
 
-## Manual compilation [![Build Status](https://travis-ci.org/PFGimenez/config.svg?branch=master)](https://travis-ci.org/PFGimenez/config)
+## Manual compilation [![](https://jitpack.io/v/Club-INTech/config.svg)](https://jitpack.io/#Club-INTech/config)
 
-You can compile it yourself. You will need a JDK and maven.
+You can compile it yourself. You will need a JDK and gradle.
 
     $ git clone https://github.com/PFGimenez/config.git --depth 1
-    $ cd config/core
-    $ mvn install
+    $ cd config
+    $ gradle build

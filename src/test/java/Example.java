@@ -3,13 +3,13 @@ import org.junit.Test;
 import pfg.config.Config;
 
 /*
- * Copyright (C) 2013-2017 Pierre-François Gimenez
+ * Copyright (C) 2013-2019 Pierre-François Gimenez, Xavier Niochaut
  * Distributed under the MIT License.
  */
 
 /**
  * An example of the config library usage
- * @author Pierre-François Gimenez
+ * @author Pierre-François Gimenez, Xavier Niochaut
  *
  */
 
