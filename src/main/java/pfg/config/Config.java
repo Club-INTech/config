@@ -247,7 +247,7 @@ public class Config
 	 */
 	public void loadInto(Object obj) throws ReflectiveOperationException {
 		Class<?> objectClass = obj.getClass();
-		for(Field f : objectClass.getFields()) {
+		for(Field f : objectClass.getDeclaredFields()) {
 			if(f.isAnnotationPresent(Configurable.class)) { // check if field is configurable
 				Configurable annotation = f.getAnnotation(Configurable.class);
 				String name = annotation.value();
