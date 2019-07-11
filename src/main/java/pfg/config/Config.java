@@ -132,7 +132,7 @@ public class Config
 
 		for(ConfigInfo info : allConfigInfo) {
 			this.allConfigInfo.add(info);
-			this.name2config.put(info.toString().toLowerCase(), info);
+			this.name2config.put(info.toString(), info);
 		}
 
 		this.verbose = verbose;
@@ -182,10 +182,15 @@ public class Config
 					{
 						ConfigInfo<?> info = name2config.get(key.toLowerCase());
 						if(info == null) {
-							if(verbose) {
-								System.err.println("Unknown key : "+key);
+							// try reformatting to camel case
+							String camelCaseVersion = ConfigInfo.toCamelCase(key);
+							info = name2config.get(camelCaseVersion);
+							if(info == null) {
+								if(verbose) {
+									System.err.println("Unknown key : "+key+", also tried "+camelCaseVersion);
+								}
+								continue;
 							}
-							continue;
 						}
 						if(info instanceof DerivedConfigInfo) { // DerivedConfigInfo values are not stored inside the configuration file
 							continue;
@@ -254,7 +259,6 @@ public class Config
 				if(name.isEmpty()) { // if no name has been given for the config key related to this field, use the field's name
 					name = f.getName();
 				}
-				name = name.toLowerCase(); // all names are stored in lowercase
 				ConfigInfo<?> configElement = name2config.get(name);
 				if(configElement == null)
 					throw new IllegalArgumentException("Config key '"+name+"' unknown (when loading config for field "+objectClass.getCanonicalName()+"#"+f.getName());
@@ -436,6 +440,8 @@ public class Config
 		if(!allConfigInfo.contains(parameter)) {
 			throw new IllegalArgumentException("Unknown configuration key : "+parameter);
 		}
+		if(!configValues.containsKey(parameter))
+			return parameter.getDefaultValue();
 		Object value = configValues.get(parameter);
 		if(parameter.getTypeClass().isPrimitive() || parameter.getTypeClass().isInstance(value)) {
 			return (Type)value;

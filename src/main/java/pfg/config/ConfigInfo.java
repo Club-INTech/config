@@ -45,13 +45,26 @@ public interface ConfigInfo<Type>
 	void setName(String name);
 
 	/**
-	 * Finds all public static final ConfigInfo fields inside the given class using reflection. It also overrides their name to use the name of the field
+	 * Finds all public static final ConfigInfo fields inside the given class using reflection. It also overrides their name to use the name of the field (reformatted in camelCase)
 	 * @param holdingClass
 	 * 		The class to search in
 	 * @return
 	 * 		An array of all renamed ConfigInfo found inside the class
 	 */
 	static ConfigInfo[] findAllIn(Class<?> holdingClass) {
+		return findAllIn(holdingClass, true);
+	}
+
+	/**
+	 * Finds all public static final ConfigInfo fields inside the given class using reflection. It also overrides their name to use the name of the field (reformatted in camelCase)
+	 * @param holdingClass
+	 * 		The class to search in
+	 * @param reformat
+	 * 		Use 'false' if the original field name should be kept (no reformatting to camelCase)
+	 * @return
+	 * 		An array of all renamed ConfigInfo found inside the class
+	 */
+	static ConfigInfo[] findAllIn(Class<?> holdingClass, boolean reformat) {
 		List<ConfigInfo<?>> parameters = new LinkedList<>();
 		Field[] fields = holdingClass.getFields();
 		for(Field field : fields)
@@ -65,7 +78,13 @@ public interface ConfigInfo<Type>
 					{
 						ConfigInfo<?> info = (ConfigInfo<?>) field.get(null);
 						parameters.add(info);
-						info.setName(field.getName());
+						String formattedName;
+						if(reformat) { // reformat to camelCase
+							formattedName = toCamelCase(field.getName());
+						} else {
+							formattedName = field.getName();
+						}
+						info.setName(formattedName);
 					} catch (IllegalAccessException e)
 					{
 						e.printStackTrace();
@@ -76,4 +95,23 @@ public interface ConfigInfo<Type>
 		return parameters.toArray(new ConfigInfo[0]);
 	}
 
+	/**
+	 * Transforms a 'STRING_CONSTANT_NAME' into a 'stringConstantName'
+	 * @param input
+	 * 		The string to transform
+	 * @return
+	 * 		The newly formatted camelCase string
+	 */
+	static String toCamelCase(String input) {
+		String[] words = input.split("_");
+		words[0] = words[0].toLowerCase();
+		for (int i = 1; i < words.length; i++) { // convert to camel case by adding capitalization after changing the name to lowercase
+			words[i] = Character.toUpperCase(words[i].charAt(0)) + words[i].toLowerCase().substring(1);
+		}
+		StringBuilder nameBuilder = new StringBuilder();
+		for (String word : words) {
+			nameBuilder.append(word);
+		}
+		return nameBuilder.toString();
+	}
 }
