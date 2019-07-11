@@ -251,8 +251,11 @@ public class Config
 	 * @param obj the object to load the config into
 	 */
 	public void loadInto(Object obj) throws ReflectiveOperationException {
-		Class<?> objectClass = obj.getClass();
-		for(Field f : objectClass.getDeclaredFields()) {
+		loadInto(obj, obj.getClass());
+	}
+
+	private void loadInto(Object obj, Class<?> asClass) throws ReflectiveOperationException {
+		for(Field f : asClass.getDeclaredFields()) {
 			if(f.isAnnotationPresent(Configurable.class)) { // check if field is configurable
 				Configurable annotation = f.getAnnotation(Configurable.class);
 				String name = annotation.value();
@@ -261,7 +264,7 @@ public class Config
 				}
 				ConfigInfo<?> configElement = name2config.get(name);
 				if(configElement == null)
-					throw new IllegalArgumentException("Config key '"+name+"' unknown (when loading config for field "+objectClass.getCanonicalName()+"#"+f.getName());
+					throw new IllegalArgumentException("Config key '"+name+"' unknown (when loading config for field "+asClass.getCanonicalName()+"#"+f.getName());
 				Object value = get(configElement);
 				// set the field's value
 				if(!f.isAccessible()) {
@@ -270,6 +273,10 @@ public class Config
 				f.set(obj, value);
 				System.out.println("Set "+f+" to "+value);
 			}
+		}
+		if(asClass.getSuperclass() != null) {
+			// recursively go deeper inside the type hierarchy
+			loadInto(obj, asClass.getSuperclass());
 		}
 	}
 
